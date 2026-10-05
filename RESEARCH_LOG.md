@@ -169,3 +169,28 @@ Results (one live sample of 1000 sigs, new each run; `data/backtest-decoded-2026
 - Front-run was capital-capped (0.300 SOL) in all hits. Hits were victims buying 0.23-3.8 SOL in pools of 56-459 SOL.
 Caveats: single ~second-scale sample, variance between runs is large (earlier assumed-slippage runs gave 8/64 and 38/266 hits); 93 ambiguous and 286 multi-hop txs excluded, so this understates opportunity count; no competition modeled; some "victims" may be bots' own legs; flat 0.25% fee assumption; hit totals are tiny in absolute terms. Treat as order-of-magnitude: cents to under a dollar per hit at $50 capital.
 Earlier file `data/backtest-2026-10-05.jsonl` holds the assumed-slippage runs (Entry 14 and a 1000-sig rerun mixed together); the decoded file is the current one.
+
+## Entry 16 - Which chain? Solana vs EVM (instructor allows Solana or any EVM chain; graded on profitability) (2026-10-05)
+Evidence quality: [PAPER] arXiv 2609.28115v1; [DATA] Bitquery (vendor study, methodology disclosed); [THIRD-PARTY] GitHub mev-scout (unknown author, tool + README, observational only); [BLOG] search summaries.
+
+SANDWICH per chain [PAPER], Jul 2023-Jun 2026 (https://arxiv.org/html/2609.28115v1):
+| Chain | Sandwiches | Bots | Net profit | Per sandwich | Notes |
+|---|---|---|---|---|---|
+| Solana | 28,042,725 | 8,631 | $345.2M | $12.31 | 88.0% profitable |
+| Ethereum | 30,607 | 7 | $254.6k | $20.33 | private RPC/OFA; one entity runs the 7 bots |
+| Tron | 38,567 | 12 | $642.5k | $23.35 | FCFS public mempool |
+| Base | 1,889 | 4 | $2.4k | $1.61 | centralized sequencer, private queue |
+| Arbitrum | 0 | 0 | - | - | none observed |
+| Monad | 0 | 0 | - | - | <1 year live |
+Reading: sandwiching at scale exists only on Solana (~99.7% of all sandwiches in the table). Base/Arbitrum offer essentially no sandwich opportunity. Solana also has by far the most competing bots.
+
+ARBITRAGE per chain [DATA] Bitquery, 12 months to 2026-08-29, EVM only (Solana excluded by Bitquery) (https://bitquery.io/investigations/crypto-arbitrage-69-cents): Ethereum 3.8M trades, $19.6M, $7.74 avg; BNB Chain 94.5M, $21.8M, $0.35; Base 21.2M, $6.0M, $0.43; Arbitrum 4.0M, $1.0M, $0.39; Polygon 4.5M, $565k, $0.22. Overall 139M trades, ~$0.69 avg; nearly half earned under one cent; BNB had ~25% of its year's profit in 3 days. Totals are stated as floors. Solana arb (different method, Jito detector): $1.58 avg (Entry 12).
+[THIRD-PARTY] mev-scout (https://github.com/Am0MuK/mev-scout): Arbitrum same-chain atomic arb over 90 days = 28,482 arbs, $12,796 net total, median $0.00, p90 $0.08, ~70% of profit from 15 txs, none still profitable one block later. Aave V3 liquidations under $100 net negative on every chain; Arbitrum liquidation market ~EUR 68k/month outside crashes with top-1 share 27%. Its own verdict for newcomers: no.
+Ordering rules [BLOG/PAPER snippets]: Base/Optimism use private mempools with priority-fee auctions; Arbitrum used Timeboost (a later snippet claims a switch to per-tx priority auctions in Sept 2026, UNVERIFIED); MEV bots on fast-finality rollups mostly spam duplicate transactions instead of bidding fees (arXiv 2506.01462). Arc (Circle EVM L1) describes private/encrypted mempools and TEE block building to block sandwiching (docs summary; primary docs not fully read).
+
+Conclusion (my reading, not measured on a fork): for a sandwich-led strategy Solana is the only chain with real volume; for arbitrage no chain shows a small-capital edge (EVM per-trade averages are cents; Arbitrum same-chain arb is effectively dead; my own Solana scan found none, Entry 11). EVM gas also hits a $50 bank hard on Ethereum. Which chains the instructor actually forks is UNKNOWN and decides this; he has so far said "Solana".
+
+## Entry 17 - Does compounding help? Profit vs capital (backtest, 2026-10-05)
+Same live sample, `CAPITAL_SOL_LIST=0.3,1,3,10,30`: 107 usable buys, 11 clear costs at every level. Total profit: 0.3 SOL -> 0.0453; 1 -> 0.1508; 3 -> 0.4461; 10 -> 1.3257; 30 -> 2.7781 SOL. Return on capital: 15.1%, 15.1%, 14.9%, 13.3%, 9.3%.
+Reading: profit scales roughly linearly with capital up to ~10 SOL, then flattens as victim size/pool depth/slippage start to bind. So in the model, compounding does let trade size grow usefully until about 10-30 SOL for these pools.
+IMPORTANT CAVEAT: a 15% return on capital for a ~1-second window cannot be a real rate. It shows this model overstates absolute profit (no competition for the same victims, reserves taken from victim-tx pre-state that may already include other bots' front-runs, 'victims' that are really bot legs, perfect landing assumed). Use these runs ONLY for the shape (scaling with capital), never as income estimates. Absolute totals at 0.3 SOL varied $2.33-$24.57 across independent samples.

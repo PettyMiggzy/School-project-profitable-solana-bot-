@@ -72,7 +72,9 @@ const txs = await pool(ok, 4, (s) => rpc('getTransaction', [s.signature, { encod
 
 fs.mkdirSync(config.dataDir, { recursive: true });
 const out = fs.createWriteStream(`${config.dataDir}/backtest-decoded-${new Date().toISOString().slice(0, 10)}.jsonl`, { flags: 'w' });
-let fetched = 0, buys = 0, sells = 0, skipped = 0, noIx = 0, hits = 0;
+let fetched = 0, buys = 0, sells = 0, skipped = 0, noIx = 0;
+const out2 = out;
+const cases = [];
 const profits = [], depths = [], sizes = [], slack = [], ratios = [];
 txs.forEach((tx, i) => {
   if (!tx) return; fetched++;
@@ -94,18 +96,22 @@ txs.forEach((tx, i) => {
     const wsol = (tx.meta.preTokenBalances ?? []).filter((b) => b.owner === payer && b.mint === SOL).reduce((a, b) => a + Number(b.uiTokenAmount.amount), 0);
     v.maxSolIn = Math.min(v.maxSolIn, tx.meta.preBalances[0] + wsol);
   }
-  const plan = planSandwich(poolState, v, CAPITAL, COST);
-  if (plan && plan.profit >= config.minNetLamports) {
-    hits++; profits.push(plan.profit);
-    out.write(JSON.stringify({ sig: ok[i].signature, mint: p.mint, kind: v.kind, depthSol: poolState.sol / 1e9, victimSol: dS / 1e9, frontSol: plan.frontSol / 1e9, netLamports: plan.profit }) + '\n');
-  }
+  cases.push({ sig: ok[i].signature, mint: p.mint, poolState, v, dS });
 });
-out.end();
 const med = (a) => (a.length ? a.slice().sort((x, y) => x - y)[Math.floor(a.length / 2)] : 0);
 const share = (a, f) => (a.length ? (100 * a.filter(f).length / a.length).toFixed(0) : 0);
 console.log(`fetched ${fetched}; single-pool buys with one decodable buy ix: ${buys}; sells ${sells}; multi-hop/unparsed ${skipped}; buys not decodable/ambiguous ${noIx}`);
 console.log(`decoder check, decoded amount / actual balance change: median ${med(ratios).toFixed(3)} (1.0 = exact; fees cause small gaps)`);
 console.log(`median pool depth ${(med(depths) / 1e9).toFixed(1)} SOL, median victim buy ${(med(sizes) / 1e9).toFixed(4)} SOL`);
 console.log(`victim slippage slack: median ${(100 * med(slack)).toFixed(1)}%; <=1%: ${share(slack, (x) => x <= 0.01)}% of buys; >=10%: ${share(slack, (x) => x >= 0.10)}%; >=50% (effectively unprotected): ${share(slack, (x) => x >= 0.5)}%`);
-const sum = profits.reduce((a, b) => a + b, 0);
-console.log(`REAL-slippage backtest: ${hits}/${buys} buys clear costs; total ${(sum / 1e9).toFixed(4)} SOL (~$${(sum / 1e9 * 155).toFixed(2)}), median ${(med(profits) / 1e9).toFixed(5)} SOL`);
+const CAPS = (process.env.CAPITAL_SOL_LIST ?? String(CAPITAL / 1e9)).split(',').map(Number);
+for (const cap of CAPS) {
+  const pr = [];
+  for (const c of cases) {
+    const plan = planSandwich(c.poolState, { ...c.v }, cap * 1e9, COST);
+    if (plan && plan.profit >= config.minNetLamports) { pr.push(plan.profit); if (cap * 1e9 === CAPITAL) out2.write(JSON.stringify({ sig: c.sig, mint: c.mint, kind: c.v.kind, depthSol: c.poolState.sol / 1e9, victimSol: c.dS / 1e9, netLamports: plan.profit }) + '\n'); }
+  }
+  const sum = pr.reduce((a, b) => a + b, 0);
+  console.log(`capital ${cap} SOL: ${pr.length}/${cases.length} buys clear costs; total ${(sum / 1e9).toFixed(4)} SOL (~$${(sum / 1e9 * 155).toFixed(2)}), median ${(med(pr) / 1e9).toFixed(5)} SOL, return on capital ${(100 * sum / 1e9 / cap).toFixed(2)}%`);
+}
+out.end();
