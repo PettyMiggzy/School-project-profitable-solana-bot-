@@ -5,3 +5,15 @@ tokens=40 usable=17 paths=70 profitable=0
   best 27G8Mt buy Whirlpool -> sell Raydium CLMM gross -27275 net -57275 lamports
   best 27G8Mt buy Meteora DLMM -> sell Raydium CLMM gross -29224 net -59224 lamports
   best A7bdiY buy Meteora DLMM -> sell Whirlpool gross -35660 net -65660 lamports
+tokens=40 usable=8 paths=38 profitable=0
+  best 27G8Mt buy Meteora DLMM -> sell Raydium CLMM gross -20167 net -50167 lamports
+  best 27G8Mt buy Meteora DLMM -> sell Whirlpool gross -26761 net -56761 lamports
+  best 27G8Mt buy Raydium CLMM -> sell Meteora DLMM gross -27654 net -57654 lamports
+  best 27G8Mt buy Whirlpool -> sell Meteora DLMM gross -28874 net -58874 lamports
+  best 27G8Mt buy Whirlpool -> sell Raydium CLMM gross -33464 net -63464 lamports
+tokens=40 usable=15 paths=62 profitable=1
+  best AwobFK buy Meteora DLMM -> sell Pump.fun Amm gross 373849 net 343849 lamports
+  best 27G8Mt buy Meteora DLMM -> sell Raydium CLMM gross -2768 net -32768 lamports
+  best 27G8Mt buy Meteora DLMM -> sell Whirlpool gross -9346 net -39346 lamports
+  best 27G8Mt buy Whirlpool -> sell Raydium CLMM gross -33475 net -63475 lamports
+  best 27G8Mt buy Raydium CLMM -> sell Whirlpool gross -38833 net -68833 lamports
