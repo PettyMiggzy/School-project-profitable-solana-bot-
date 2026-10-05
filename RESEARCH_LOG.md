@@ -32,8 +32,8 @@ Source: [EigenPhi, "Solana's Triangular Arbitrage Explored: A Case Study on Jito
 ## Entry 3 - Candidate B (lead): "Reverse Engineering a 4,500 SOL/m Solana Arbitrage Bot"
 
 - Notion write-up: https://clumsy-geranium-e59.notion.site/Reverse-Engineering-a-4-500-Sol-m-Solana-Arbitrage-Bot-2aa6e851c31e802296f0f43621bad30b
-- Search snippet claims: atomic arbitrage across four DEXs, about $700k/month. Title says 4,500 SOL/month. The two figures are inconsistent as given (4,500 SOL is far below $700k at any recent SOL price), so treat both as UNVERIFIED.
-- FETCH FAILED: Notion is JS-rendered; WebFetch and the scour.ing mirror returned no content. Action: user should open the link in a browser and paste the text or addresses into this log, or I retry with a headless browser (Playwright/Chromium is available in this container).
+- Search snippet claims: atomic arbitrage across four DEXs, about $700k/month. Title says 4,500 SOL/month. CORRECTION (Entry 10): the two figures are consistent (4,500 SOL x ~$155 = ~$700k).
+- Initial fetch failed (Notion is JS-rendered). RESOLVED in Entry 10 via Notion's public page API. Action: user should open the link in a browser and paste the text or addresses into this log, or I retry with a headless browser (Playwright/Chromium is available in this container).
 
 ## Entry 4 - Excluded / noted
 
@@ -92,3 +92,21 @@ Findings:
 - Bot #2 had a 41% success rate, consistent with a spam-and-fail bot or an abandoned one.
 - Bot #1's five newest txs all failed with ProgramFailedToComplete, so it may have died or broken in July 2026.
 - Conclusion: these are poor targets for "profitable, currently active bot". Source of the handoff figures is unknown. Recommend not using them as the report's primary subjects unless profit can be shown from on-chain token balances over their active window.
+
+## Entry 10 - Candidate B contents retrieved (primary source read in full)
+Source: Notion write-up "Reverse-Engineering a 4,500 Sol/m Solana Arbitrage Bot" (author unnamed; screenshots dated 2025-11-13). Fetched via the public `/api/v3/loadPageChunk` endpoint (76 blocks).
+Author's claims (self-reported; cross-checked against sandwiched.me and Flipside by the author, NOT by me):
+- "Bot Address": `CroWg74XNDF8UMnAZVbXx49iVj7iJ7b4CsqTCVWF7aK`. Last 30 days: profit 4,500 SOL (~$700k), fees 27 SOL (~$4k).
+- Volume: 1.24M successful txs, 152,550 failed. Author says only ~11% of successful txs generated the profit; a Flipside pass found 118,336 profitable txs worth ~3,628 SOL (~$550k) excluding USDC/USDT trades.
+- Strategy: atomic arbitrage through a custom swap-router program (a private "mini-Jupiter") that executes multi-leg swaps in ONE transaction and reverts if it would lose money. 4 DEXs, 8 pools, 28+ routes. Shapes: 2-step (buy DEX1, sell DEX2) and 3-step (buy DEX1, swap on DEX2, sell DEX3).
+- Main venues found: Pump.fun AMM, Meteora, Orca Whirlpools (the fourth DEX is not named).
+- Capital: author says at least $100,000 for safe operation; largest single trade ~300 SOL (~$45k).
+- Latency: opportunities last ~100ms; needs data in 10-40ms via Solana shred streams. Author's own implementation was still at 180ms avg and ~1% success, migrating JS to Rust.
+- Author says writing the router program from scratch would take over a year.
+
+On-chain verification by me (mainnet, 2026-10-05):
+- `CroWg74...` is an executable upgradeable PROGRAM (the router), not a wallet. Newest tx 2026-07-28 13:43 UTC. 1000 most recent txs span 2026-06-30 to 2026-07-28, only 22 succeeded.
+- RPC freshness confirmed (current slot blocktime 2026-10-05 13:12; Jupiter v6 and Orca active that second). So the silence is real.
+- Notable: Bot #1 (`E6YoRP3a...`), and `CroWg74...` both have newest tx at 2026-07-28 ~13:41-13:43 UTC, within two minutes. Bot #2 stopped earlier (2025-09-24). A simultaneous stop suggests a shared cause (one operator rotating to new program addresses, or a venue/protocol change). UNVERIFIED which. A redeployed program under a new address would explain it, so "program silent" does not mean "operator stopped".
+
+Assessment for the report: Candidate B is the best-documented, but (1) the exact strategy needs >=$100k capital and shred-stream latency, neither available at $50 on a fork; (2) its program is currently inactive at the address given; (3) profit figures are the author's. Still the right architecture to study and the right basis for a scaled-down cross-DEX arb.
