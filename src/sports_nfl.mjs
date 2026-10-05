@@ -52,10 +52,13 @@ await Promise.all(Array.from({ length: 4 }, async () => {
     const outs = JSON.parse(mk.outcomes), toks = JSON.parse(mk.clobTokenIds), start = Date.parse(mk.gameStartTime.replace('+00', 'Z').replace(' ', 'T')) / 1000;
     const hi = outs.findIndex((o) => o === g.home.shortDisplayName), ai = outs.findIndex((o) => o === g.away.shortDisplayName);
     if (hi < 0 || ai < 0) { miss.pm++; continue; }
+    const LEADS = [['6d', 6 * 86400], ['3d', 3 * 86400], ['1d', 86400], ['6h', 6 * 3600]];
+    const pxAt = async (t, lead) => { const tgt = start - lead; const h = (await get(`${CLOB}/prices-history?market=${toks[t]}&startTs=${tgt - 7200}&endTs=${tgt + 60}&fidelity=30`))?.history ?? []; const pt = h.filter((x) => x.t <= tgt).at(-1); return pt && tgt - pt.t <= 4 * 3600 ? pt.p : null; };
+    const early = {}; for (const [name, lead] of LEADS) early[name] = { h: await pxAt(hi, lead), a: await pxAt(ai, lead) };
     const px = async (t) => { const h = (await get(`${CLOB}/prices-history?market=${toks[t]}&startTs=${start - 7200}&endTs=${start + 300}&fidelity=1`))?.history ?? []; return h.filter((x) => x.t <= start - 120).at(-1)?.p; };
     const pH = await px(hi), pA = await px(ai);
     if (pH == null || pA == null) { miss.price++; continue; }
-    rows.push({ id: g.id, year: g.year, week: g.week, home: g.home.abbreviation, away: g.away.abbreviation, dkHome, pmHome: pH, pmAway: pA, homeWin: g.homeWin ? 1 : 0, fee: mk.feeSchedule?.rate ?? (mk.feesEnabled ? 0.05 : 0) });
+    rows.push({ early, id: g.id, year: g.year, week: g.week, home: g.home.abbreviation, away: g.away.abbreviation, dkHome, pmHome: pH, pmAway: pA, homeWin: g.homeWin ? 1 : 0, fee: mk.feeSchedule?.rate ?? (mk.feesEnabled ? 0.05 : 0) });
   }
 }));
 fs.writeFileSync('data/sports-nfl.json', JSON.stringify(rows));
