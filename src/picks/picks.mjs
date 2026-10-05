@@ -37,7 +37,7 @@ async function snap() {
     for (let i = 0; i <= DAYS; i++) {
       const d = await board(lg, ymd(new Date(Date.now() + i * 864e5)));
       for (const e of d?.events ?? []) {
-        if (e.status.type.name !== 'STATUS_SCHEDULED') continue;
+        if (e.status.type.name !== 'STATUS_SCHEDULED' || ![2, 3].includes(e.season?.type)) continue;
         const c = e.competitions[0], h = c.competitors.find((t) => t.homeAway === 'home').team.abbreviation, a = c.competitors.find((t) => t.homeAway === 'away').team.abbreviation;
         const odds = (await get(`https://sports.core.api.espn.com/v2/sports/${C ? LEAGUES[lg].path.replace('/', '/leagues/') : ''}/events/${e.id}/competitions/${c.id}/odds`))?.items?.[0];
         const hm = odds?.homeTeamOdds?.moneyLine, am = odds?.awayTeamOdds?.moneyLine;
@@ -71,6 +71,8 @@ async function settle() {
   console.log(`settled games: ${rows.length}`);
   for (const lg of ON) { show(`${lg} all picks`, rows.filter((x) => x.lg === lg)); show(`${lg} edge >= ${EDGE}`, rows.filter((x) => x.lg === lg && x.edge >= EDGE)); }
   show('ALL edge >= ' + EDGE, rows.filter((x) => x.edge >= EDGE));
+  show('ALL edge 3-8 pts', rows.filter((x) => x.edge >= 0.03 && x.edge < 0.08));
+  show('ALL edge 8+ pts (usually model error, not market error)', rows.filter((x) => x.edge >= 0.08));
 }
 
 if (CMD === 'snap') await snap(); else if (CMD === 'settle') await settle(); else console.log('usage: node src/picks/picks.mjs snap|settle');
