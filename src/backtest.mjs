@@ -68,7 +68,7 @@ const SIG_RPC = process.env.SIG_RPC_URL ?? config.rpcUrl;
 const sigs = (await rpc('getSignaturesForAddress', [PROGRAM, { limit: N }], 5, SIG_RPC)) ?? [];
 const ok = sigs.filter((s) => !s.err);
 console.log(`program ${PROGRAM.slice(0, 8)}…, ${sigs.length} sigs, ${ok.length} successful, RPC ${new URL(config.rpcUrl).host}`);
-const txs = await pool(ok, 4, (s) => rpc('getTransaction', [s.signature, { encoding: 'json', maxSupportedTransactionVersion: 0, commitment: 'confirmed' }]));
+const txs = await pool(ok, 4, (s) => rpc('getTransaction', [s.signature, { encoding: 'json', maxSupportedTransactionVersion: 1, commitment: 'confirmed' }]));
 
 fs.mkdirSync(config.dataDir, { recursive: true });
 const out = fs.createWriteStream(`${config.dataDir}/backtest-decoded-${new Date().toISOString().slice(0, 10)}.jsonl`, { flags: 'w' });
