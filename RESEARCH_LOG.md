@@ -72,3 +72,23 @@ User handoff named two programs as the "top bots" (42% and 11.2% share; $1.6B an
 - Implication: these are bot on-chain programs, not searcher wallets. Strategy has to be inferred from (a) transactions that invoke them and (b) the program bytecode. Identity of the operators and whether they sandwich is still UNVERIFIED.
 - Scope decision: sandwiching on a local fork against classmates' bots is a simulation, fine for the assignment. A mainnet submission path will not be built, because on mainnet a sandwich profits from real users' losses.
 - Technical correction to handoff: Solana has no public mempool. "Mempool listener" is not possible; detection comes from Jito/validator private orderflow, shred/gRPC streams, or on a fork, from the transactions the instructor's harness submits. Jito may not exist on the fork.
+
+## Entry 8 - Test-day constraints (from user, relaying instructor)
+- Starting capital: $50 USD.
+- DEXs: same as Solana mainnet (instructor sets up for mainnet, then forks).
+- Chain ID / RPC details: given on test day only. Bot must be config-driven (RPC URL, chain id, keys via env), nothing hardcoded.
+- Implications: $50 capital caps any strategy to cents-to-dollars per trade, so fee/rent/priority-fee overhead dominates; latency edge is absent on a fork; the graded quality is likely correct execution and net-positive P&L, not raw speed.
+
+## Entry 9 - Activity check of the two user-supplied programs (2026-10-05 13:06 UTC)
+Method: mainnet getSignaturesForAddress, limit 1000, via api.mainnet-beta.solana.com.
+| Program | Txs returned | Successful | Newest | Oldest |
+|---|---|---|---|---|
+| `E6YoRP3a...AmfLi` ("Bot #1") | 1000 | 953 | 2026-07-28 | 2025-12-17 |
+| `89Ny6a4m...Epq6` ("Bot #2") | 1000 | 412 | 2025-09-24 | 2025-03-13 |
+
+Findings:
+- NEITHER program has any activity in the last 30 days. Bot #1 was last invoked ~10 weeks ago, Bot #2 over a year ago. The handoff's "30-day volume / actively profitable / market share" claims are contradicted by chain data.
+- Bot #1 averaged only ~5 txs/day over Dec 2025-Jul 2026, far below what $1.6B/30d implies.
+- Bot #2 had a 41% success rate, consistent with a spam-and-fail bot or an abandoned one.
+- Bot #1's five newest txs all failed with ProgramFailedToComplete, so it may have died or broken in July 2026.
+- Conclusion: these are poor targets for "profitable, currently active bot". Source of the handoff figures is unknown. Recommend not using them as the report's primary subjects unless profit can be shown from on-chain token balances over their active window.
