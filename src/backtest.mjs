@@ -10,6 +10,31 @@ const CAPITAL = Number(process.env.CAPITAL_LAMPORTS ?? 300_000_000);
 const COST = config.baseFeeLamports + config.priorityFeeLamports;
 const SLIPPAGES = (process.env.SLIPPAGE_BPS_LIST ?? '100,300,1000').split(',').map(Number);
 
+const B58 = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
+function b58(str) {
+  let n = 0n; for (const c of str) n = n * 58n + BigInt(B58.indexOf(c));
+  let h = n.toString(16); if (h.length % 2) h = '0' + h;
+  let b = Buffer.from(h, 'hex');
+  for (const c of str) { if (c === '1') b = Buffer.concat([Buffer.from([0]), b]); else break; }
+  return b;
+}
+const DISC_BUY = '66063d1201daebea', DISC_BUY_EXACT_IN = 'c62e1552b4d9e870';
+
+function pumpBuys(tx) {
+  const m = tx.transaction.message;
+  const keys = [...m.accountKeys, ...(tx.meta.loadedAddresses?.writable ?? []), ...(tx.meta.loadedAddresses?.readonly ?? [])];
+  const all = [...m.instructions, ...(tx.meta.innerInstructions ?? []).flatMap((i) => i.instructions)];
+  const out = [];
+  for (const ix of all) {
+    if (keys[ix.programIdIndex] !== PROGRAM) continue;
+    const d = b58(ix.data); if (d.length < 24) continue;
+    const disc = d.subarray(0, 8).toString('hex');
+    if (disc === DISC_BUY) out.push({ kind: 'exactOut', tokenOut: Number(d.readBigUInt64LE(8)), maxSolIn: Number(d.readBigUInt64LE(16)) });
+    else if (disc === DISC_BUY_EXACT_IN) out.push({ kind: 'exactIn', solIn: Number(d.readBigUInt64LE(8)), minTokenOut: Number(d.readBigUInt64LE(16)) });
+  }
+  return out;
+}
+
 function parseBuy(tx) {
   const m = tx.meta;
   if (!m || m.err || !m.preTokenBalances || !m.postTokenBalances) return null;
@@ -39,40 +64,48 @@ async function pool(items, n, fn) {
   return out;
 }
 
-const sigs = (await rpc('getSignaturesForAddress', [PROGRAM, { limit: N }])) ?? [];
+const SIG_RPC = process.env.SIG_RPC_URL ?? config.rpcUrl;
+const sigs = (await rpc('getSignaturesForAddress', [PROGRAM, { limit: N }], 5, SIG_RPC)) ?? [];
 const ok = sigs.filter((s) => !s.err);
 console.log(`program ${PROGRAM.slice(0, 8)}…, ${sigs.length} sigs, ${ok.length} successful, RPC ${new URL(config.rpcUrl).host}`);
 const txs = await pool(ok, 4, (s) => rpc('getTransaction', [s.signature, { encoding: 'json', maxSupportedTransactionVersion: 0, commitment: 'confirmed' }]));
 
 fs.mkdirSync(config.dataDir, { recursive: true });
-const out = fs.createWriteStream(`${config.dataDir}/backtest-${new Date().toISOString().slice(0, 10)}.jsonl`, { flags: 'a' });
-let fetched = 0, buys = 0, sells = 0, skipped = 0;
-const res = Object.fromEntries(SLIPPAGES.map((b) => [b, { hits: 0, total: 0, profits: [] }]));
-const depths = [], sizes = [];
+const out = fs.createWriteStream(`${config.dataDir}/backtest-decoded-${new Date().toISOString().slice(0, 10)}.jsonl`, { flags: 'w' });
+let fetched = 0, buys = 0, sells = 0, skipped = 0, noIx = 0, hits = 0;
+const profits = [], depths = [], sizes = [], slack = [], ratios = [];
 txs.forEach((tx, i) => {
   if (!tx) return; fetched++;
   const p = parseBuy(tx);
   if (!p) { skipped++; return; }
   if (p.side === 'sell') { sells++; return; }
+  const dec = pumpBuys(tx);
+  if (dec.length !== 1) { noIx++; return; }
   buys++;
+  const v = dec[0];
   const poolState = { sol: Number(p.solPre), token: Number(p.tokPre), fee: FEE };
-  const solIn = Number(p.dS);
-  depths.push(poolState.sol); sizes.push(solIn);
-  for (const bps of SLIPPAGES) {
-    const victim = { solIn, minTokenOut: minOutFromSlippage(poolState, solIn, bps) };
-    const plan = planSandwich(poolState, victim, CAPITAL, COST);
-    res[bps].total++;
-    if (plan && plan.profit >= config.minNetLamports) {
-      res[bps].hits++; res[bps].profits.push(plan.profit);
-      out.write(JSON.stringify({ sig: ok[i].signature, mint: p.mint, bps, depthSol: poolState.sol / 1e9, victimSol: solIn / 1e9, frontSol: plan.frontSol / 1e9, netLamports: plan.profit }) + '\n');
-    }
+  const dS = Number(p.dS), dT = -Number(p.dT);
+  ratios.push(v.kind === 'exactIn' ? v.solIn / dS : v.tokenOut / dT);
+  depths.push(poolState.sol); sizes.push(dS);
+  if (v.kind === 'exactIn') { const q = minOutFromSlippage(poolState, v.solIn, 0); slack.push(1 - v.minTokenOut / q); }
+  else { const c = (poolState.sol * v.tokenOut) / ((poolState.token - v.tokenOut) * (1 - FEE)); slack.push(v.maxSolIn / c - 1); }
+  if (v.kind === 'exactOut') {
+    const payer = tx.transaction.message.accountKeys[0];
+    const wsol = (tx.meta.preTokenBalances ?? []).filter((b) => b.owner === payer && b.mint === SOL).reduce((a, b) => a + Number(b.uiTokenAmount.amount), 0);
+    v.maxSolIn = Math.min(v.maxSolIn, tx.meta.preBalances[0] + wsol);
+  }
+  const plan = planSandwich(poolState, v, CAPITAL, COST);
+  if (plan && plan.profit >= config.minNetLamports) {
+    hits++; profits.push(plan.profit);
+    out.write(JSON.stringify({ sig: ok[i].signature, mint: p.mint, kind: v.kind, depthSol: poolState.sol / 1e9, victimSol: dS / 1e9, frontSol: plan.frontSol / 1e9, netLamports: plan.profit }) + '\n');
   }
 });
 out.end();
 const med = (a) => (a.length ? a.slice().sort((x, y) => x - y)[Math.floor(a.length / 2)] : 0);
-console.log(`fetched ${fetched}, parsed single-pool: buys ${buys}, sells ${sells}, unparsed/multi-hop ${skipped}`);
-console.log(`median pool depth ${(med(depths) / 1e9).toFixed(1)} SOL, median victim buy ${(med(sizes) / 1e9).toFixed(3)} SOL`);
-for (const bps of SLIPPAGES) {
-  const r = res[bps]; const sum = r.profits.reduce((a, b) => a + b, 0);
-  console.log(`assumed victim slippage ${bps / 100}%: ${r.hits}/${r.total} buys clear costs; total ${(sum / 1e9).toFixed(4)} SOL (~$${(sum / 1e9 * 155).toFixed(2)}), median ${(med(r.profits) / 1e9).toFixed(5)} SOL`);
-}
+const share = (a, f) => (a.length ? (100 * a.filter(f).length / a.length).toFixed(0) : 0);
+console.log(`fetched ${fetched}; single-pool buys with one decodable buy ix: ${buys}; sells ${sells}; multi-hop/unparsed ${skipped}; buys not decodable/ambiguous ${noIx}`);
+console.log(`decoder check, decoded amount / actual balance change: median ${med(ratios).toFixed(3)} (1.0 = exact; fees cause small gaps)`);
+console.log(`median pool depth ${(med(depths) / 1e9).toFixed(1)} SOL, median victim buy ${(med(sizes) / 1e9).toFixed(4)} SOL`);
+console.log(`victim slippage slack: median ${(100 * med(slack)).toFixed(1)}%; <=1%: ${share(slack, (x) => x <= 0.01)}% of buys; >=10%: ${share(slack, (x) => x >= 0.10)}%; >=50% (effectively unprotected): ${share(slack, (x) => x >= 0.5)}%`);
+const sum = profits.reduce((a, b) => a + b, 0);
+console.log(`REAL-slippage backtest: ${hits}/${buys} buys clear costs; total ${(sum / 1e9).toFixed(4)} SOL (~$${(sum / 1e9 * 155).toFixed(2)}), median ${(med(profits) / 1e9).toFixed(5)} SOL`);

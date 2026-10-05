@@ -42,3 +42,11 @@ test('profit is negative-or-null when costs exceed edge', () => {
   const victim = { solIn: 5 * L, minTokenOut: minOutFromSlippage(pool, 5 * L, 50) };
   assert.equal(planSandwich(pool, victim, 0.3 * L, 10 * L), null);
 });
+
+test('exactOut victim: max-in limit is honored and zero slack blocks attack', () => {
+  const tokenOut = 5e12;
+  const cost0 = (pool.sol * tokenOut) / ((pool.token - tokenOut) * (1 - pool.fee));
+  assert.equal(planSandwich(pool, { kind: 'exactOut', tokenOut, maxSolIn: cost0 }, 0.3 * L, cost), null);
+  const p = planSandwich(pool, { kind: 'exactOut', tokenOut, maxSolIn: cost0 * 1.5 }, 100 * L, cost);
+  assert.ok(p && p.backSol > 0);
+});
