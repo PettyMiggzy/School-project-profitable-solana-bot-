@@ -33,7 +33,7 @@ async function scanToken(mint) {
 }
 
 export async function cycle(log) {
-  const tokens = (await topTokens(config.tokenLimit)) ?? FALLBACK_TOKENS;
+  const tokens = process.env.TOKENS ? process.env.TOKENS.split(',') : ((await topTokens(config.tokenLimit)) ?? FALLBACK_TOKENS);
   const results = [];
   for (const mint of tokens.filter((m) => m !== SOL)) results.push(await scanToken(mint));
   const rows = results.flatMap((r) => r.rows);
