@@ -110,3 +110,11 @@ On-chain verification by me (mainnet, 2026-10-05):
 - Notable: Bot #1 (`E6YoRP3a...`), and `CroWg74...` both have newest tx at 2026-07-28 ~13:41-13:43 UTC, within two minutes. Bot #2 stopped earlier (2025-09-24). A simultaneous stop suggests a shared cause (one operator rotating to new program addresses, or a venue/protocol change). UNVERIFIED which. A redeployed program under a new address would explain it, so "program silent" does not mean "operator stopped".
 
 Assessment for the report: Candidate B is the best-documented, but (1) the exact strategy needs >=$100k capital and shred-stream latency, neither available at $50 on a fork; (2) its program is currently inactive at the address given; (3) profit figures are the author's. Still the right architecture to study and the right basis for a scaled-down cross-DEX arb.
+
+## Entry 11 - Cross-DEX arb scan results (2026-10-05 13:13-13:22 UTC)
+Method: `src/scan.mjs`. Buy 0.25 SOL of a token on DEX A (Jupiter quote, direct routes, DEX-restricted), sell the proceeds on DEX B, compare to input. DEXs: Whirlpool, Meteora DLMM, Meteora, Raydium CLMM, Raydium, Raydium CP, Pump.fun Amm. Top ~25 traded tokens per cycle. Quote-only, nothing executed. Fee model: 10,000 lamports base + 20,000 priority.
+Results: 4 cycles (slow because of API rate limiting), 488 round-trip paths logged (`data/scan-2026-10-05.jsonl`).
+- Paths with positive GROSS profit: 0. Paths clearing fees: 0.
+- Best path: Meteora DLMM -> Whirlpool on token `98sMhv...`, gross -207,565 lamports (about -0.083% of the trade). Same best path repeated across cycles, so it is a stable spread, not noise.
+- Median net was about -2.4M lamports (-1%), driven by thin pools.
+Interpretation: at this size, with Jupiter's quotes, cross-DEX gaps are smaller than pool fees. Profitable bots in the Notion write-up win with (1) shred-stream data in 10-40ms, (2) a custom atomic router, (3) $100k+ capital, none of which a $50 quote-polling bot has. Limits of this test: Jupiter quotes lag on-chain state and polling takes seconds while real arb windows are ~100ms; one 10-minute sample; no 3-leg routes; no Pump.fun bonding-curve or brand-new-token paths. So "zero found" means this method does not work, not that no arbitrage exists.
