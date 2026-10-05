@@ -1,0 +1,10 @@
+{
+  "name": "solana-mev-class-bot",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test test/*.test.mjs",
+    "scan": "node src/scan.mjs",
+    "sweep": "node src/sweep.mjs"
+  }
+}
