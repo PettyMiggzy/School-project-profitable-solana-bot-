@@ -1,0 +1,10 @@
+import fs from 'node:fs';
+import { equity } from './core.mjs';
+const L = JSON.parse(fs.readFileSync(process.env.LEDGER ?? 'data/paper/ledger.json', 'utf8'));
+const open = L.positions.filter((p) => p.status === 'open'), done = L.positions.filter((p) => p.status === 'settled');
+const pnl = done.reduce((s, p) => s + p.pnl, 0), wins = done.filter((p) => p.pnl > 0).length;
+const lines = [`start $${L.start.toFixed(2)} | cash $${L.cash.toFixed(2)} | equity (open at cost) $${equity(L).toFixed(2)} | realized pnl $${pnl.toFixed(2)} (${done.length} settled, ${wins} wins) | open ${open.length}`, `skipped: ${JSON.stringify(L.skipped)}`];
+for (const p of L.positions.slice(-15)) lines.push(`${p.status.padEnd(7)} ${p.q.slice(0, 48).padEnd(48)} ${p.outcome.padEnd(10)} ${p.shares.toFixed(1)} sh @ ${p.entry} cost $${p.cost.toFixed(2)}${p.status === 'settled' ? ' pnl $' + p.pnl.toFixed(2) : ''}`);
+console.log(lines.join('\n'));
+const rows = L.positions.map((p) => `<tr><td>${p.status}</td><td>${p.q}</td><td>${p.outcome}</td><td>${p.entry}</td><td>${p.cost.toFixed(2)}</td><td>${p.pnl?.toFixed(2) ?? ''}</td></tr>`).join('');
+fs.writeFileSync('data/paper/report.html', `<!doctype html><meta charset=utf-8><title>Paper bot</title><style>body{font:14px sans-serif;margin:24px}td,th{padding:4px 10px;border-bottom:1px solid #ddd;text-align:left}</style><h2>Paper bot (no real trades)</h2><p>${lines[0]}</p><p>${lines[1]}</p><table><tr><th>status<th>market<th>side<th>entry<th>cost $<th>pnl $</tr>${rows}</table>`);
