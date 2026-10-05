@@ -118,3 +118,21 @@ Results: 4 cycles (slow because of API rate limiting), 488 round-trip paths logg
 - Best path: Meteora DLMM -> Whirlpool on token `98sMhv...`, gross -207,565 lamports (about -0.083% of the trade). Same best path repeated across cycles, so it is a stable spread, not noise.
 - Median net was about -2.4M lamports (-1%), driven by thin pools.
 Interpretation: at this size, with Jupiter's quotes, cross-DEX gaps are smaller than pool fees. Profitable bots in the Notion write-up win with (1) shred-stream data in 10-40ms, (2) a custom atomic router, (3) $100k+ capital, none of which a $50 quote-polling bot has. Limits of this test: Jupiter quotes lag on-chain state and polling takes seconds while real arb windows are ~100ms; one 10-minute sample; no 3-leg routes; no Pump.fun bonding-curve or brand-new-token paths. So "zero found" means this method does not work, not that no arbitrage exists.
+
+## Entry 12 - Which strategies earn most on Solana mainnet (fact-based, 2026-10-05)
+Evidence quality tags: [PAPER] peer-style measurement, [DATA] first-party stats, [BLOG] secondary/marketing, [GAP] could not find data.
+
+SANDWICH [PAPER]: arXiv 2609.28115v1 "No Place to Hide" (https://arxiv.org/html/2609.28115v1), 3-year study 2023-07-01 to 2026-06-30. Solana: 28.0M sandwiches by 8,631 bots; gross profit $383.4M, net $345.2M; 88.0% of attacks profitable. Net per sandwich = 345.2M/28.0M = ~$12.3 (my calculation; the figure I first extracted labelled $12.30 as gross, but gross/28.0M = $13.7, so only the net figure is self-consistent). Only 16.5% of 5.02M sandwiches on Axiom victims carrying jitodontfront had a Jito tip, i.e. most bypass Jito's protection. Stated limitation: heuristics cannot always tell which tx in a multi-victim sandwich was targeted.
+Other sandwich data: Vpe program ~1.55M sandwiches, $13.43M in 30 days (Dec 7-Jan 5), 88.9% success, ~$8.67 avg (Helius report). ACM measurement of Jito sandwiching: 500K+ attacks early 2025, $7.7M+ victim losses (search snippet; page returned 403, not read).
+
+ARBITRAGE [DATA]: Jito detector, one year: 90,445,905 successful arbs, $142.8M profit, avg $1.58 per arb, max $3.7M, 88.7% SOL-denominated (Helius). Excludes private mempools.
+
+Per-operation comparison (my arithmetic on the above): sandwich ~$12 net per success vs arb ~$1.58 average. Arb has ~3x the transactions but ~0.4x the total profit. Total: sandwich $345M net over 3 yrs vs arb $142.8M in ONE year, so annual totals are the same order of magnitude; the sandwich figure is a 3-year total, so per year arb is larger. Do not claim sandwiches earn more in total from this data.
+
+LIQUIDATION [BLOG]: 2-8% collateral bonus when health factor < 1.0 on Kamino/MarginFi/Drift/Save; first tx to land wins (RPCFast). No aggregate profit figure found. [GAP]
+JIT LIQUIDITY [GAP]: no Solana-specific profitability data found; only generic descriptions of concentrated-liquidity DEXs (Orca Whirlpool, Meteora DLMM, Raydium CLMM).
+TOKEN SNIPING / LAUNCH ARB [GAP]: described but no measured profit data found.
+
+Market-wide claims [BLOG, low confidence]: "$720M MEV revenue last year", "$847M in 2025", ">55% of MEV transactions revert or fail to land", "most participants lost money while a small share captured most profit". Origin sources not found; the one page that might support them (mevbotsolana.net) was unreachable and looks like vendor marketing. Do not cite these in the report without a primary source.
+
+Implications for a $50 bot (REASONING, not measured): profit per sandwich depends on victim trade size and on how much capital you can put in the front-run leg, so $50 caps the per-trade take well below the $12 average; arb already measured as unprofitable at this size (Entry 11). Fork behaviour will differ from mainnet.
