@@ -1,1 +1,7 @@
 scan: size 0.25 SOL, dexes=Whirlpool|Meteora DLMM|Meteora|Raydium CLMM|Raydium|Raydium CP|Pump.fun Amm
+tokens=25 usable=17 paths=116 profitable=0
+  best 98sMhv buy Meteora DLMM -> sell Whirlpool gross -207565 net -237565 lamports
+  best 98sMhv buy Raydium CLMM -> sell Meteora DLMM gross -248155 net -278155 lamports
+  best 98sMhv buy Meteora DLMM -> sell Raydium CLMM gross -253402 net -283402 lamports
+  best 98sMhv buy Raydium CLMM -> sell Whirlpool gross -255507 net -285507 lamports
+  best JUPyiw buy Whirlpool -> sell Meteora DLMM gross -264438 net -294438 lamports
